@@ -244,6 +244,14 @@ struct smt_params : public preprocessor_params,
 
     // -----------------------------------
     //
+    // CC dump (smt.cc_log / smt.cc_log_mode)
+    //
+    // -----------------------------------
+    symbol              m_cc_log;       // empty == disabled
+    symbol              m_cc_log_mode;  // "conflict" | "instantiation" | "both"
+
+    // -----------------------------------
+    //
     // Solver selection
     //
     // -----------------------------------

@@ -68,7 +68,8 @@ void smt_params::updt_local_params(params_ref const & _p) {
     m_lemmas2console = sp.lemmas2console();
     m_instantiations2console = sp.instantiations2console();
     m_proof_log = sp.proof_log();
-    
+    m_cc_log = p.cc_log();
+    m_cc_log_mode = p.cc_log_mode();
 }
 
 void smt_params::updt_params(params_ref const & p) {

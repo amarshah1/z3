@@ -1493,6 +1493,15 @@ namespace smt {
 
         std::string mk_lemma_name() const;
 
+        // CC dump (smt.cc_log). Walks the SAT trail, keeps only literals
+        // whose underlying expr is `(= ...)`, `(distinct ...)`, or
+        // `(not (= ...))`, and writes a self-contained SMT-LIB2 file with
+        // the declarations those literals reference.
+        void dump_cc_state(char const * tag);
+
+        // Counter for naming dumped CC files; incremented on each dump.
+        mutable unsigned m_cc_log_counter = 0;
+
         void display_assignment_as_smtlib2(std::ostream& out, symbol const& logic = symbol::null) const;
 
         void display_normalized_enodes(std::ostream & out) const;

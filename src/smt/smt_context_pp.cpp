@@ -21,6 +21,8 @@ Revision History:
 #include "ast/ast_pp.h"
 #include "ast/ast_pp_util.h"
 #include "util/stats.h"
+#include <fstream>
+#include <sstream>
 #ifndef SINGLE_THREAD
 #include <thread>
 #endif
@@ -517,6 +519,66 @@ namespace smt {
         strm << "lemma_" << (++m_lemma_id) << ".smt2";
 #endif
         return std::move(strm).str();
+    }
+
+    void context::dump_cc_state(char const * tag) {
+        symbol const & dir_sym = m_fparams.m_cc_log;
+        if (dir_sym == symbol::null || !dir_sym.is_non_empty_string())
+            return;
+        std::string dir = dir_sym.str();
+
+        // Walk the SAT trail; keep only literals whose underlying expr is
+        //   (= a b)   |   (distinct ts...)   |   (not (= a b)).
+        // A pure congruence-closure procedure can't consume Boolean structure
+        // (or, ite, function-as-predicate, ...), so we deliberately drop any
+        // non-eq literal here.
+        ast_pp_util visitor(m);
+        expr_ref_vector fmls(m);
+        visitor.collect(fmls);
+        expr_ref n(m);
+        for (literal lit : m_assigned_literals) {
+            literal2expr(lit, n);
+            // n is positive Bool expr (no top-level negation when lit is positive)
+            // or m.mk_not(...) when lit is negative.
+            expr * atom = nullptr;
+            bool neg = false;
+            if (m.is_not(n, atom))
+                neg = true;
+            else
+                atom = n;
+
+            bool keep = false;
+            if (m.is_eq(atom))
+                keep = true;
+            else if (m.is_distinct(atom))
+                keep = !neg;     // (not (distinct ...)) is not in pure-CC fragment
+            // else: drop
+            if (!keep)
+                continue;
+            fmls.push_back(n);
+        }
+
+        // Build the file path: <dir>/cc_<counter>.smt2
+        // Bump the counter even if dir doesn't yet exist; the user is
+        // responsible for creating the directory before invoking z3.
+        ++m_cc_log_counter;
+        std::stringstream path;
+        path << dir << "/cc_" << m_cc_log_counter << ".smt2";
+
+        std::ofstream out(path.str());
+        if (!out) {
+            // Could not open the file (most likely the directory does not
+            // exist). Give up silently rather than failing the solve.
+            return;
+        }
+        out << "(set-info :source |z3 cc_log dump (" << tag << "), "
+            << "trail size=" << m_assigned_literals.size()
+            << ", filtered=" << fmls.size() << "|)\n";
+
+        visitor.collect(fmls);
+        visitor.display_decls(out);
+        visitor.display_asserts(out, fmls, true);
+        out << "(check-sat)\n";
     }
 
 

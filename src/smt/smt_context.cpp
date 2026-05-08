@@ -4112,11 +4112,21 @@ namespace smt {
     final_check_status context::final_check() {
         TRACE(final_check, tout << "final_check inconsistent: " << inconsistent() << "\n"; display(tout); display_normalized_enodes(tout););
         CASSERT("relevancy", check_relevancy());
-        
+
         if (m_fparams.m_model_on_final_check) {
             mk_proto_model();
             model_pp(std::cout, *m_proto_model);
             std::cout << "END_OF_MODEL" << std::endl;
+        }
+
+        // CC-dump (instantiation mode): we are at a fully-propagated SAT
+        // model (every prior round of quantifier instantiation has been
+        // completely propagated by the SAT core), so the current trail
+        // contains the equalities introduced by the last round.
+        if (m_fparams.m_cc_log != symbol::null && m_fparams.m_cc_log.is_non_empty_string()) {
+            symbol mode = m_fparams.m_cc_log_mode;
+            if (mode == symbol("instantiation") || mode == symbol("both"))
+                dump_cc_state("final_check");
         }
 
         m_stats.m_num_final_checks++;
@@ -4229,6 +4239,17 @@ namespace smt {
         m_num_conflicts ++;
         m_num_conflicts_since_restart ++;
         m_num_conflicts_since_lemma_gc ++;
+
+        // CC-dump (conflict mode): the SAT trail at this point is the trail
+        // that just produced a conflict. Includes CC conflicts as well as
+        // pure-Boolean ones; downstream consumers should expect the dump to
+        // be unsat only when the conflict was actually a CC conflict.
+        if (m_fparams.m_cc_log != symbol::null && m_fparams.m_cc_log.is_non_empty_string()) {
+            symbol mode = m_fparams.m_cc_log_mode;
+            if (mode == symbol("conflict") || mode == symbol("both"))
+                dump_cc_state("conflict");
+        }
+
         switch (m_conflict.get_kind()) {
         case b_justification::CLAUSE:
         case b_justification::BIN_CLAUSE:
