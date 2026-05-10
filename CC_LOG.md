@@ -57,7 +57,7 @@ mkdir -p /tmp/cc_dumps
 Output files: `/tmp/cc_dumps/cc_1.smt2`, `/tmp/cc_dumps/cc_2.smt2`, ...
 Each contains:
 
-```
+```text
 (set-info :source |z3 cc_log dump (...), trail size=..., filtered=...|)
 (declare-sort ...)
 (declare-fun ...)
@@ -77,7 +77,7 @@ collected via z3's existing `ast_pp_util`.
 
 For each literal `lit` on the SAT trail:
 
-```
+```text
 let e = literal2expr(lit)
 let atom = is_not(e) ? e.arg(0) : e
 keep iff:
@@ -96,9 +96,18 @@ represents the *equality fragment* of the trail at the dump moment.
 
 1. **Lets are preserved.** z3's pretty-printer re-introduces `(let
    ...)` bindings to share common subterms. If a downstream consumer
-   needs let-free files, post-process with a script that walks the
-   AST in tree form. (See e.g. `Sundance-SMT/scripts/cc_log_inline_lets.py`
-   in the companion repo.)
+   needs let-free files, post-process with the bundled
+   [`scripts/cc_log_inline_lets.py`](scripts/cc_log_inline_lets.py),
+   which uses the z3 Python bindings to parse a dumped file, walk
+   the AST in tree form, and re-emit it without lets. Usage:
+
+   ```bash
+   pip install z3-solver
+   python3 scripts/cc_log_inline_lets.py <input.smt2> <output.smt2>
+   ```
+
+   The expanded file can be 5-10x larger than the input on benchmarks
+   with heavy subterm sharing.
 
 2. **Theory equalities are mixed in.** z3's E-graph receives equalities
    from `theory_arith`, `theory_array`, `theory_bv`, `theory_datatype`,
